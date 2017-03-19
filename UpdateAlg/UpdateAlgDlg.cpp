@@ -410,43 +410,49 @@ void CUpdateAlgDlg::OnBnClickedButtonRight()
     }
 }
 
-const char fileHead[][128] = {
+const char FixedPart1[][128] = {
     "CC = cl.exe",
     "LINK = link.exe",
 //     "CFLAG = /c /I $(INCLUDE)",
 //     "OFLAG = /libpath:$(LIB)",
     "OUTDIR = .\\out",
     "TARG = $(OUTDIR)\\libalg.dll",
-    "",
+};
+const char FixedPart2[][128] = {
     "all:clean $(OUTDIR) $(TARG)",
     "",
     "$(OUTDIR):",
     "    if not exist \"$(OUTDIR)\" mkdir $(OUTDIR)",
     ".c.obj::",
-    "    $(CC) -c /Fo\"$(OUTDIR)\\\" /Fd\"$(OUTDIR)\\\" $<"
+    "    $(CC) -c /Fo\"$(OUTDIR)\\\\\" /Fd\"$(OUTDIR)\\\\\" $<"
 };
-const char CCLine[] = "    $(CC) -c /Fo\"$(OUTDIR)\\\" /Fd\"$(OUTDIR)\\\" $<\r\n";
-const char LinkTarg[] = "$(TARG): ";
-const char LinkLine[] = "    $(LINK) /dll /def:libalg.def /out:$(TARG) $(OUTDIR)\*.obj\r\n";
-const char fileTail[][128] = {
+const char CCRuleLine[] = "    $(CC) -c /Fo\"$(OUTDIR)\\\\\" /Fd\"$(OUTDIR)\\\\\" $<\r\n";
+const char LinkRely[] = "$(TARG): $(OBJ)\r\n";
+const char LinkLine[] = "    $(LINK) /dll /def:libalg.def /out:$(TARG) $(OUTDIR)\\*.obj\r\n";
+const char FixedPart3[][128] = {
+    "$(TARG): $(OBJ)",
+    "    $(LINK) /dll /def:libalg.def /out:$(TARG) $(OUTDIR)\\*.obj",
+    "",
     "clean:",
     "    del $(OUTDIR)\\*.obj",
     "    del $(OUTDIR)\\*.lib",
     "    del $(OUTDIR)\\*.exp",
     "",
     "all:$(OUTDIR) $(TARG)",
-    "",
-    "$(OUTDIR):",
-    "    if not exist \"$(OUTDIR)\" mkdir $(OUTDIR)"
+    ""
 };
 
-CString CUpdateAlgDlg::CCLineProcess()
+CString CUpdateAlgDlg::CCLineProcess(CString &strObj)
 {
     CString strText;
     CString strRes;
-    int     npos;
+    CString strFolder;
+    CString strFile;
+    int     slash_pos, dot_pos;
     CList<CString> sSrcFolder;
     HTREEITEM hItem;
+    strObj.ReleaseBuffer();
+    strObj = "OBJ = \\\r\n";
     if(m_treeEnFile.ItemHasChildren(m_hItemEnSrc))//遍历enable src
     {
         hItem = m_treeEnFile.GetChildItem(m_hItemEnSrc);
@@ -454,27 +460,37 @@ CString CUpdateAlgDlg::CCLineProcess()
         {
             /* 获取Item 文本 */
             strText = m_treeDisFile.GetItemText(hItem);
-            if((npos = strText.ReverseFind('\\')) >= 0)
+            if((slash_pos = strText.ReverseFind('\\')) >= 0)
             {
-                strText = strText.Left(npos);
-                if(sSrcFolder.Find(strText) == NULL)
+                strFolder = strText.Left(slash_pos);
+                if(sSrcFolder.Find(strFolder) == NULL)
                 {
-                    sSrcFolder.AddTail(strText);
-                    PrintLog(".\\%s",strText);
+                    sSrcFolder.AddTail(strFolder);
+                    PrintLog(".\\%s",strFolder);
                 }
+            }
+
+            if((dot_pos = strText.ReverseFind('.')) >= 0)
+            {
+                if(slash_pos >= 0)
+                    strFile = strText.Mid(slash_pos+1, dot_pos - slash_pos);
+                else
+                    strFile = strText.Left(dot_pos+1);
+                strObj += "    " + strFile + "obj \\\r\n";
             }
             hItem = m_treeEnFile.GetNextSiblingItem(hItem);
         }
     }
+    strObj += "\r\n";
 
-    POSITION pos = sSrcFolder.GetHeadPosition();
-    for(; pos!=NULL; sSrcFolder.GetNext(pos))
+    POSITION list_pos = sSrcFolder.GetHeadPosition();
+    for(; list_pos!=NULL; sSrcFolder.GetNext(list_pos))
     {
-        strText = m_listEnableSrc.GetAt(pos);
-        strText.Format("{.\\%s}.c.obj::\r\n",strText);
-        strRes += strText;
-        strText.Format("%s",CCLine);
-        strRes += strText;
+        strFolder = m_listEnableSrc.GetAt(list_pos);
+        strFolder.Format("{.\\%s}.c.obj::\r\n",strFolder);
+        strRes += strFolder;
+        strFolder.Format("%s",CCRuleLine);
+        strRes += strFolder;
     }
     return strRes;
 }
@@ -482,18 +498,34 @@ void CUpdateAlgDlg::OnBnClickedButtonDo()
 {
     // TODO: 在此添加控件通知处理程序代码
     CString res;
+    CString strOBJ;
     CFile   *pMakeFile;
     int     i = 0;
     SetCurrentDirectory(m_sCurPath);
     pMakeFile = new CFile(".\\makefile", CFile::modeCreate | CFile::modeWrite);
 
-    for(i = 0; i < sizeof(fileHead)/sizeof(fileHead[0]); i++)
+    for(i = 0; i < sizeof(FixedPart1)/sizeof(FixedPart1[0]); i++)
     {
-        pMakeFile->Write(fileHead[i], strlen(fileHead[i]));
+        pMakeFile->Write(FixedPart1[i], strlen(FixedPart1[i]));
         pMakeFile->Write("\r\n", 2);
     }
-    res = CCLineProcess();
+    res = CCLineProcess(strOBJ);
+
+    pMakeFile->Write(strOBJ, strOBJ.GetLength());
+
+    for(i = 0; i < sizeof(FixedPart2)/sizeof(FixedPart2[0]); i++)
+    {
+        pMakeFile->Write(FixedPart2[i], strlen(FixedPart2[i]));
+        pMakeFile->Write("\r\n", 2);
+    }
     pMakeFile->Write(res, res.GetLength());
+
+    for(i = 0; i < sizeof(FixedPart3)/sizeof(FixedPart3[0]); i++)
+    {
+        pMakeFile->Write(FixedPart3[i], strlen(FixedPart3[i]));
+        pMakeFile->Write("\r\n", 2);
+    }
+//    pMakeFile->Write(res, res.GetLength());
 //    res = ExecuteCmd("dir");
     
     delete pMakeFile;

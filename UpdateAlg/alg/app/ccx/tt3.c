@@ -1,8 +1,8 @@
 
 //#include "libalg.h"
-#include "tt2.h"
+#include "tt3.h"
 
-int GetAdd(int a, int b)
+int GetAdd2(int a, int b)
 {
 	return a + b;
 }

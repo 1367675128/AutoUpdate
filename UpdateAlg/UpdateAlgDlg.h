@@ -58,7 +58,7 @@ public:
     void Recurse(CString pstr, CString type, CString& strText);
     void RemoveInvalidItem();
     CString ExecuteCmd(CString str);
-    CString CCLineProcess();
+    CString CCLineProcess(CString &strObj);
     BOOL FindItem(HTREEITEM item, CString strtext, int type);
     afx_msg void OnBnClickedButtonLeft();
     afx_msg void OnBnClickedButtonRight();
