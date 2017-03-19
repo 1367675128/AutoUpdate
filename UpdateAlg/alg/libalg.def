@@ -1,0 +1,7 @@
+;liblag .def
+LIBRARY libalg.def	;the dll name
+DESCRIPTION "Learn how to use the dll."
+EXPORTS
+	GetMax @1
+	xMax=GetMax @2	; alias name of GetMax
+; Ok, over
